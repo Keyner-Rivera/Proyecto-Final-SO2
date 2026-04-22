@@ -1,290 +1,700 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>LiDAR Events Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      background: #0f1117;
-      color: #e0e0e0;
-      min-height: 100vh;
+    /* ── TOKENS ───────────────────────────────────────────── */
+    :root {
+      --ease: cubic-bezier(.4,0,.2,1);
+      --radius: 16px;
+      --radius-sm: 10px;
     }
 
+    [data-theme="dark"] {
+      --bg-base:        #080a0e;
+      --bg-grad-a:      #0d1117;
+      --bg-grad-b:      #111520;
+      --bg-grad-c:      #0a0c14;
+      --glass-bg:       rgba(255,255,255,0.04);
+      --glass-border:   rgba(255,255,255,0.08);
+      --glass-hover:    rgba(255,255,255,0.07);
+      --glass-shadow:   0 8px 32px rgba(0,0,0,0.5);
+      --text-primary:   #f0f2f5;
+      --text-secondary: #8892a4;
+      --text-muted:     #4a5568;
+      --accent:         #e2e8f0;
+      --accent-dim:     rgba(226,232,240,0.12);
+      --accent-glow:    rgba(226,232,240,0.06);
+      --badge-bg:       rgba(255,255,255,0.08);
+      --badge-border:   rgba(255,255,255,0.15);
+      --badge-text:     #cbd5e1;
+      --dot-on:         #4ade80;
+      --dot-off:        #f87171;
+      --divider:        rgba(255,255,255,0.06);
+      --orb-a:          rgba(99,102,241,0.12);
+      --orb-b:          rgba(168,85,247,0.08);
+      --orb-c:          rgba(59,130,246,0.07);
+      --toggle-bg:      rgba(255,255,255,0.08);
+      --toggle-knob:    #f0f2f5;
+      --scrollbar:      rgba(255,255,255,0.08);
+    }
+
+    [data-theme="light"] {
+      --bg-base:        #f4f6f9;
+      --bg-grad-a:      #eef0f5;
+      --bg-grad-b:      #e8ecf3;
+      --bg-grad-c:      #f0f3f8;
+      --glass-bg:       rgba(255,255,255,0.65);
+      --glass-border:   rgba(255,255,255,0.9);
+      --glass-hover:    rgba(255,255,255,0.8);
+      --glass-shadow:   0 8px 32px rgba(0,0,0,0.08);
+      --text-primary:   #0f1117;
+      --text-secondary: #64748b;
+      --text-muted:     #94a3b8;
+      --accent:         #1e293b;
+      --accent-dim:     rgba(15,17,23,0.08);
+      --accent-glow:    rgba(15,17,23,0.04);
+      --badge-bg:       rgba(15,17,23,0.06);
+      --badge-border:   rgba(15,17,23,0.12);
+      --badge-text:     #334155;
+      --dot-on:         #16a34a;
+      --dot-off:        #dc2626;
+      --divider:        rgba(0,0,0,0.06);
+      --orb-a:          rgba(99,102,241,0.07);
+      --orb-b:          rgba(168,85,247,0.05);
+      --orb-c:          rgba(59,130,246,0.05);
+      --toggle-bg:      rgba(0,0,0,0.08);
+      --toggle-knob:    #1e293b;
+      --scrollbar:      rgba(0,0,0,0.1);
+    }
+
+    /* ── RESET & BASE ─────────────────────────────────────── */
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Syne', sans-serif;
+      background: var(--bg-base);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+      transition: background 0.4s var(--ease), color 0.4s var(--ease);
+    }
+
+    /* ── BACKGROUND ───────────────────────────────────────── */
+    .bg-scene {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 20% 10%, var(--bg-grad-a), transparent),
+        radial-gradient(ellipse 60% 80% at 80% 90%, var(--bg-grad-b), transparent),
+        radial-gradient(ellipse 100% 100% at 50% 50%, var(--bg-grad-c), transparent),
+        var(--bg-base);
+      transition: background 0.4s var(--ease);
+    }
+
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      pointer-events: none;
+      animation: drift 20s ease-in-out infinite;
+    }
+    .orb-1 { width:500px; height:500px; background:var(--orb-a); top:-100px; left:-100px; animation-delay:0s; }
+    .orb-2 { width:400px; height:400px; background:var(--orb-b); bottom:-80px; right:-80px; animation-delay:-7s; }
+    .orb-3 { width:300px; height:300px; background:var(--orb-c); top:50%; left:60%; animation-delay:-14s; }
+
+    @keyframes drift {
+      0%,100% { transform: translate(0,0) scale(1); }
+      33%      { transform: translate(30px,-20px) scale(1.05); }
+      66%      { transform: translate(-20px,30px) scale(0.97); }
+    }
+
+    /* ── LAYOUT ───────────────────────────────────────────── */
+    .app {
+      position: relative;
+      z-index: 1;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 32px 24px 64px;
+    }
+
+    /* ── GLASS MIXIN ──────────────────────────────────────── */
+    .glass {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      box-shadow: var(--glass-shadow);
+      border-radius: var(--radius);
+      transition: background 0.3s var(--ease), border-color 0.3s var(--ease), box-shadow 0.3s var(--ease);
+    }
+
+    /* ── HEADER ───────────────────────────────────────────── */
     header {
-      background: #1a1d2e;
-      border-bottom: 2px solid #00d4ff;
-      padding: 20px 40px;
       display: flex;
       justify-content: space-between;
       align-items: center;
+      padding: 20px 28px;
+      margin-bottom: 28px;
     }
 
-    header h1 {
-      font-size: 1.5rem;
-      color: #00d4ff;
-      letter-spacing: 2px;
+    .header-left { display:flex; align-items:center; gap:16px; }
+
+    .logo-mark {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: var(--accent-dim);
+      border: 1px solid var(--glass-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
     }
 
-    #status {
+    .brand {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .brand-name {
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--text-primary);
+    }
+
+    .brand-sub {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      letter-spacing: 0.08em;
+    }
+
+    .header-right { display:flex; align-items:center; gap:16px; }
+
+    /* ── STATUS PILL ──────────────────────────────────────── */
+    .status-pill {
       display: flex;
       align-items: center;
       gap: 8px;
-      font-size: 0.85rem;
+      padding: 8px 14px;
+      border-radius: 100px;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.7rem;
+      letter-spacing: 0.05em;
+      color: var(--text-secondary);
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      backdrop-filter: blur(10px);
     }
 
-    #status-dot {
-      width: 10px;
-      height: 10px;
+    .status-dot {
+      width: 7px;
+      height: 7px;
       border-radius: 50%;
-      background: #00ff88;
-      animation: pulse 1.5s infinite;
+      background: var(--dot-on);
+      box-shadow: 0 0 8px var(--dot-on);
+      transition: background 0.3s, box-shadow 0.3s;
+    }
+    .status-dot.offline {
+      background: var(--dot-off);
+      box-shadow: 0 0 8px var(--dot-off);
+      animation: none;
+    }
+    .status-dot.online { animation: blink 2s ease-in-out infinite; }
+    @keyframes blink {
+      0%,100% { opacity:1; }
+      50%      { opacity:0.4; }
     }
 
-    #status-dot.error { background: #ff4444; animation: none; }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.3; }
+    /* ── THEME TOGGLE ─────────────────────────────────────── */
+    .theme-toggle {
+      position: relative;
+      width: 48px;
+      height: 26px;
+      cursor: pointer;
+      background: var(--toggle-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 100px;
+      transition: background 0.3s var(--ease), border-color 0.3s var(--ease);
+      flex-shrink: 0;
     }
 
-    .stats {
-      display: flex;
-      gap: 20px;
-      padding: 30px 40px;
+    .theme-toggle::after {
+      content: '';
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--toggle-knob);
+      transition: transform 0.35s var(--ease), background 0.3s;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+
+    [data-theme="light"] .theme-toggle::after {
+      transform: translateX(22px);
+    }
+
+    .toggle-icon {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 10px;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+    .icon-moon { left: 5px; }
+    .icon-sun  { right: 5px; }
+
+    /* ── STATS GRID ───────────────────────────────────────── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 16px;
     }
 
     .stat-card {
-      background: #1a1d2e;
-      border: 1px solid #2a2d3e;
-      border-radius: 12px;
-      padding: 20px 30px;
-      flex: 1;
-      text-align: center;
-    }
-
-    .stat-card h2 {
-      font-size: 2.5rem;
-      color: #00d4ff;
-    }
-
-    .stat-card p {
-      font-size: 0.85rem;
-      color: #888;
-      margin-top: 5px;
-    }
-
-    .controls {
-      padding: 0 40px 20px;
+      padding: 24px 24px 20px;
       display: flex;
-      gap: 10px;
+      flex-direction: column;
+      gap: 8px;
     }
 
-    button {
-      padding: 10px 20px;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 0.9rem;
+    .stat-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.65rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .stat-value {
+      font-size: 2.2rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      line-height: 1;
+      letter-spacing: -0.02em;
+    }
+
+    .stat-value.mono {
+      font-family: 'DM Mono', monospace;
+      font-size: 1.4rem;
+      font-weight: 400;
+    }
+
+    .stat-sub {
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    /* ── CONTROLS ─────────────────────────────────────────── */
+    .controls-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 20px;
+      margin-bottom: 16px;
+      border-radius: var(--radius-sm);
+    }
+
+    .controls-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.65rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-sm);
+      background: var(--glass-bg);
+      color: var(--text-secondary);
+      font-family: 'Syne', sans-serif;
+      font-size: 0.78rem;
       font-weight: 600;
-      transition: opacity 0.2s;
+      cursor: pointer;
+      backdrop-filter: blur(10px);
+      transition: all 0.2s var(--ease);
+      letter-spacing: 0.02em;
     }
 
-    button:hover { opacity: 0.8; }
-
-    #btn-refresh { background: #00d4ff; color: #0f1117; }
-    #btn-clear   { background: #ff4444; color: white; }
-
-    .table-container {
-      padding: 0 40px 40px;
+    .btn:hover {
+      background: var(--glass-hover);
+      color: var(--text-primary);
+      border-color: var(--glass-border);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
     }
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      background: #1a1d2e;
-      border-radius: 12px;
+    .btn:active { transform: translateY(0); }
+
+    .btn-danger {
+      color: #f87171;
+      border-color: rgba(248,113,113,0.2);
+    }
+    .btn-danger:hover {
+      background: rgba(248,113,113,0.08);
+      color: #fca5a5;
+      border-color: rgba(248,113,113,0.3);
+    }
+
+    .btn-icon { font-size: 0.85rem; }
+
+    /* ── TABLE ────────────────────────────────────────────── */
+    .table-wrap {
       overflow: hidden;
     }
 
-    thead {
-      background: #12152a;
+    .table-header {
+      display: grid;
+      grid-template-columns: 52px 1fr 1.6fr 1fr;
+      padding: 12px 24px;
+      border-bottom: 1px solid var(--divider);
     }
 
-    th {
-      padding: 15px 20px;
-      text-align: left;
-      font-size: 0.8rem;
-      color: #00d4ff;
-      letter-spacing: 1px;
+    .th {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.62rem;
+      letter-spacing: 0.12em;
       text-transform: uppercase;
+      color: var(--text-muted);
     }
 
-    td {
-      padding: 14px 20px;
-      border-top: 1px solid #2a2d3e;
-      font-size: 0.9rem;
+    .table-body { max-height: 480px; overflow-y: auto; }
+
+    .table-body::-webkit-scrollbar { width: 4px; }
+    .table-body::-webkit-scrollbar-track { background: transparent; }
+    .table-body::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 2px; }
+
+    .table-row {
+      display: grid;
+      grid-template-columns: 52px 1fr 1.6fr 1fr;
+      padding: 14px 24px;
+      border-bottom: 1px solid var(--divider);
+      transition: background 0.15s var(--ease);
+      animation: rowIn 0.3s var(--ease) both;
     }
 
-    tr:hover td { background: #12152a; }
+    @keyframes rowIn {
+      from { opacity:0; transform:translateY(6px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+
+    .table-row:hover { background: var(--accent-glow); }
+    .table-row:last-child { border-bottom: none; }
+
+    .td {
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      overflow: hidden;
+    }
+
+    .td-num {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+    }
 
     .badge {
-      display: inline-block;
-      padding: 4px 12px;
-      border-radius: 20px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      background: #00d4ff22;
-      color: #00d4ff;
-      border: 1px solid #00d4ff44;
-    }
-
-    .data-cell {
-      font-family: monospace;
-      font-size: 0.8rem;
-      color: #aaa;
-      max-width: 300px;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.68rem;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      background: var(--badge-bg);
+      border: 1px solid var(--badge-border);
+      color: var(--badge-text);
       white-space: nowrap;
     }
 
-    #empty-state {
-      text-align: center;
-      padding: 60px;
-      color: #555;
+    .td-data {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      display: block;
+      width: 100%;
     }
 
-    #empty-state p { margin-top: 10px; font-size: 0.9rem; }
+    .td-time {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+    }
+
+    /* ── EMPTY STATE ──────────────────────────────────────── */
+    .empty-state {
+      padding: 80px 24px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .empty-icon {
+      font-size: 2rem;
+      opacity: 0.3;
+      margin-bottom: 4px;
+    }
+
+    .empty-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .empty-sub {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+    }
+
+    /* ── FOOTER ───────────────────────────────────────────── */
+    .footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 24px 0;
+      margin-top: 16px;
+    }
+
+    .footer-text {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      letter-spacing: 0.05em;
+    }
+
+    /* ── RESPONSIVE ───────────────────────────────────────── */
+    @media (max-width: 768px) {
+      .stats-grid { grid-template-columns: 1fr; }
+      .table-header,
+      .table-row { grid-template-columns: 40px 1fr 1fr; }
+      .td:nth-child(3) { display: none; }
+      .th:nth-child(3) { display: none; }
+      .app { padding: 16px 12px 48px; }
+    }
   </style>
 </head>
 <body>
 
-  <header>
-    <h1>⚡ LIDAR EVENTS DASHBOARD</h1>
-    <div id="status">
-      <div id="status-dot"></div>
-      <span id="status-text">Conectado</span>
+<div class="bg-scene">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+</div>
+
+<div class="app">
+
+  <!-- HEADER -->
+  <header class="glass">
+    <div class="header-left">
+      <div class="logo-mark">⚡</div>
+      <div class="brand">
+        <span class="brand-name">LiDAR Dashboard</span>
+        <span class="brand-sub">event log system · v1.0</span>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="status-pill">
+        <div class="status-dot online" id="status-dot"></div>
+        <span id="status-text">online</span>
+      </div>
+      <div class="theme-toggle" id="theme-toggle" title="Cambiar tema">
+        <span class="toggle-icon icon-moon">🌙</span>
+        <span class="toggle-icon icon-sun">☀️</span>
+      </div>
     </div>
   </header>
 
-  <div class="stats">
-    <div class="stat-card">
-      <h2 id="total-count">0</h2>
-      <p>Total de Eventos</p>
+  <!-- STATS -->
+  <div class="stats-grid">
+    <div class="stat-card glass">
+      <span class="stat-label">Total de eventos</span>
+      <span class="stat-value" id="total-count">—</span>
+      <span class="stat-sub">registrados en base de datos</span>
     </div>
-    <div class="stat-card">
-      <h2 id="last-event">—</h2>
-      <p>Último Evento</p>
+    <div class="stat-card glass">
+      <span class="stat-label">Último evento</span>
+      <span class="stat-value mono" id="last-event">—</span>
+      <span class="stat-sub">tipo más reciente</span>
     </div>
-    <div class="stat-card">
-      <h2 id="last-time">—</h2>
-      <p>Última Actualización</p>
+    <div class="stat-card glass">
+      <span class="stat-label">Última actualización</span>
+      <span class="stat-value mono" id="last-time">—</span>
+      <span class="stat-sub">refresco automático · 5s</span>
     </div>
   </div>
 
-  <div class="controls">
-    <button id="btn-refresh" onclick="fetchEvents()">🔄 Actualizar</button>
-    <button id="btn-clear" onclick="clearEvents()">🗑️ Limpiar</button>
+  <!-- CONTROLS -->
+  <div class="controls-bar glass">
+    <span class="section-label">Registro de eventos</span>
+    <div class="controls-left">
+      <button class="btn" onclick="fetchEvents()">
+        <span class="btn-icon">↻</span> Actualizar
+      </button>
+      <button class="btn btn-danger" onclick="clearEvents()">
+        <span class="btn-icon">⊘</span> Limpiar
+      </button>
+    </div>
   </div>
 
-  <div class="table-container">
-    <table>
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>Tipo de Evento</th>
-          <th>Datos</th>
-          <th>Timestamp</th>
-        </tr>
-      </thead>
-      <tbody id="events-body">
-        <tr id="empty-state">
-          <td colspan="4">
-            <p>🔍 No hay eventos registrados aún</p>
-            <p>Envía eventos desde tu sistema LiDAR para verlos aquí</p>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+  <!-- TABLE -->
+  <div class="table-wrap glass">
+    <div class="table-header">
+      <span class="th">#</span>
+      <span class="th">Tipo</span>
+      <span class="th">Datos</span>
+      <span class="th">Timestamp</span>
+    </div>
+    <div class="table-body" id="table-body">
+      <div class="empty-state">
+        <div class="empty-icon">◎</div>
+        <span class="empty-title">Sin eventos registrados</span>
+        <span class="empty-sub">los datos aparecerán aquí automáticamente</span>
+      </div>
+    </div>
   </div>
 
-  <script>
-    const BACKEND_URL = 'http://localhost:3000';
+  <!-- FOOTER -->
+  <div class="footer">
+    <span class="footer-text">lidar-events-server · SO2 · 2026</span>
+    <span class="footer-text" id="footer-count">— eventos cargados</span>
+  </div>
 
-    async function fetchEvents() {
-      try {
-        const res = await fetch(`${BACKEND_URL}/events`);
-        const events = await res.json();
+</div>
 
-        // Actualizar stats
-        document.getElementById('total-count').textContent = events.length;
-        document.getElementById('last-time').textContent =
-          new Date().toLocaleTimeString('es');
+<script>
+  const BACKEND_URL = 'http://localhost:3000';
 
-        if (events.length > 0) {
-          document.getElementById('last-event').textContent = events[0].type;
-        }
+  // ── THEME ───────────────────────────────────────────────
+  const toggle = document.getElementById('theme-toggle');
+  const html   = document.documentElement;
 
-        // Actualizar tabla
-        const tbody = document.getElementById('events-body');
+  const savedTheme = localStorage.getItem('theme') || 'dark';
+  html.setAttribute('data-theme', savedTheme);
 
-        if (events.length === 0) {
-          tbody.innerHTML = `
-            <tr id="empty-state">
-              <td colspan="4">
-                <p>🔍 No hay eventos registrados aún</p>
-              </td>
-            </tr>`;
-          return;
-        }
+  toggle.addEventListener('click', () => {
+    const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', next);
+    localStorage.setItem('theme', next);
+  });
 
-        tbody.innerHTML = events.map((e, i) => `
-          <tr>
-            <td>${events.length - i}</td>
-            <td><span class="badge">${e.type}</span></td>
-            <td class="data-cell">${e.data ? JSON.stringify(e.data) : '—'}</td>
-            <td>${new Date(e.timestamp).toLocaleString('es')}</td>
-          </tr>
-        `).join('');
-
-        setStatus(true);
-
-      } catch (err) {
-        setStatus(false);
-        console.error('Error conectando al backend:', err);
-      }
+  // ── STATUS ──────────────────────────────────────────────
+  function setStatus(online) {
+    const dot  = document.getElementById('status-dot');
+    const text = document.getElementById('status-text');
+    if (online) {
+      dot.className = 'status-dot online';
+      text.textContent = 'online';
+    } else {
+      dot.className = 'status-dot offline';
+      text.textContent = 'offline';
     }
+  }
 
-    async function clearEvents() {
-      if (!confirm('¿Seguro que deseas limpiar todos los eventos?')) return;
-      try {
-        await fetch(`${BACKEND_URL}/events`, { method: 'DELETE' });
-        fetchEvents();
-      } catch (err) {
-        console.error('Error al limpiar eventos:', err);
-      }
-    }
+  // ── FETCH EVENTS ────────────────────────────────────────
+  async function fetchEvents() {
+    try {
+      const res    = await fetch(`${BACKEND_URL}/events`);
+      const events = await res.json();
 
-    function setStatus(online) {
-      const dot = document.getElementById('status-dot');
-      const text = document.getElementById('status-text');
-      if (online) {
-        dot.className = '';
-        text.textContent = 'Conectado';
+      document.getElementById('total-count').textContent = events.length;
+      document.getElementById('last-time').textContent   = new Date().toLocaleTimeString('es', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+
+      if (events.length > 0) {
+        document.getElementById('last-event').textContent = events[0].type;
       } else {
-        dot.className = 'error';
-        text.textContent = 'Sin conexión';
+        document.getElementById('last-event').textContent = '—';
       }
+
+      document.getElementById('footer-count').textContent = `${events.length} evento${events.length !== 1 ? 's' : ''} cargado${events.length !== 1 ? 's' : ''}`;
+
+      const body = document.getElementById('table-body');
+
+      if (events.length === 0) {
+        body.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">◎</div>
+            <span class="empty-title">Sin eventos registrados</span>
+            <span class="empty-sub">los datos aparecerán aquí automáticamente</span>
+          </div>`;
+        setStatus(true);
+        return;
+      }
+
+      body.innerHTML = events.map((e, i) => `
+        <div class="table-row" style="animation-delay:${i * 0.03}s">
+          <div class="td td-num">${String(events.length - i).padStart(3,'0')}</div>
+          <div class="td"><span class="badge">${e.type}</span></div>
+          <div class="td"><span class="td-data">${e.data ? JSON.stringify(e.data) : '—'}</span></div>
+          <div class="td td-time">${formatDate(e.timestamp)}</div>
+        </div>
+      `).join('');
+
+      setStatus(true);
+
+    } catch (err) {
+      setStatus(false);
+      document.getElementById('footer-count').textContent = 'error de conexión';
+      console.error('Error:', err);
     }
+  }
 
-    // Cargar eventos al iniciar y cada 5 segundos
-    fetchEvents();
-    setInterval(fetchEvents, 5000);
-  </script>
+  function formatDate(ts) {
+    const d = new Date(ts);
+    const date = d.toLocaleDateString('es', { day:'2-digit', month:'2-digit' });
+    const time = d.toLocaleTimeString('es', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+    return `${date} · ${time}`;
+  }
 
+  // ── CLEAR EVENTS ────────────────────────────────────────
+  async function clearEvents() {
+    if (!confirm('¿Confirmar eliminación de todos los eventos?')) return;
+    try {
+      await fetch(`${BACKEND_URL}/events`, { method: 'DELETE' });
+      fetchEvents();
+    } catch (err) {
+      console.error('Error al limpiar:', err);
+    }
+  }
+
+  // ── INIT ────────────────────────────────────────────────
+  fetchEvents();
+  setInterval(fetchEvents, 5000);
+</script>
 </body>
 </html>
