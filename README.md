@@ -81,7 +81,9 @@ curl -X POST http://IP_PUBLICA:3000/events \
 
 ## Servidor en Producción
 
-**IP Pública:** `PENDIENTE — DigitalOcean`
+**IP Pública:** `161.35.49.210`
+- Dashboard: http://161.35.49.210:8080
+- Backend: http://161.35.49.210:3000
 
 ---
 
