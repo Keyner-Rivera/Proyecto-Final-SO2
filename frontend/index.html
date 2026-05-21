@@ -629,6 +629,21 @@
     }
   }
 
+
+  // ── SANITIZE DATA (Anti-XSS Mitigation) ──────────────────
+  function escapeHTML(str) {
+    return str.replace(/[&<>"']/g, function(match) {
+      const escapeMap = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#x27;'
+      };
+      return escapeMap[match];
+    });
+  }
+
   // ── FETCH EVENTS ────────────────────────────────────────
   async function fetchEvents() {
     try {
@@ -662,8 +677,8 @@
       body.innerHTML = events.map((e, i) => `
         <div class="table-row" style="animation-delay:${i * 0.03}s">
           <div class="td td-num">${String(events.length - i).padStart(3,'0')}</div>
-          <div class="td"><span class="badge">${e.type}</span></div>
-          <div class="td"><span class="td-data">${e.data ? JSON.stringify(e.data) : '—'}</span></div>
+          <div class="td"><span class="badge">${escapeHTML(e.type)}</span></div>
+          <div class="td"><span class="td-data">${e.data ? escapeHTML(JSON.stringify(e.data)) : '—'}</span></div>
           <div class="td td-time">${formatDate(e.timestamp)}</div>
         </div>
       `).join('');
