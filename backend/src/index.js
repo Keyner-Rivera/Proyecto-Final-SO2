@@ -19,8 +19,8 @@ mongoose.connect(MONGO_URI)
 // Schema y modelo del evento
 const eventSchema = new mongoose.Schema({
   type:      { type: String, required: true },
-  data:      { type: mongoose.Schema.Types.Mixed },
-  timestamp: { type: Date, default: Date.now }
+  data:      { type: mongoose.Schema.Types.Mixed, required: true},
+  timestamp: { type: Date, default: Date.now, index: true }
 });
 
 const Event = mongoose.model('Event', eventSchema);
@@ -51,10 +51,13 @@ app.post('/events', async (req, res) => {
 // GET /events — obtener todos los eventos (para el dashboard)
 app.get('/events', async (req, res) => {
   try {
-    const events = await Event.find().sort({ timestamp: -1 });
+    const events = await Event.find()
+    .sort({ timestamp: -1 })
+    .limit(300);
     res.json(events);
   } catch (err) {
-    res.status(500).json({ error: 'Error al obtener eventos' });
+    res.status(500)
+    .json({ error: 'Error al obtener eventos' });
   }
 });
 
