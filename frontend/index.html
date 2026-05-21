@@ -598,7 +598,10 @@
 </div>
 
 <script>
-  const BACKEND_URL = 'http://161.35.49.210:3000';
+  // Detecta dinámicamente si estás corriendo localmente o en el servidor de producción
+  const BACKEND_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? 'http://localhost:3000'
+  : 'http://161.35.49.210:3000';
 
   // ── THEME ───────────────────────────────────────────────
   const toggle = document.getElementById('theme-toggle');
